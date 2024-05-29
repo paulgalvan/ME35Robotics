@@ -21,7 +21,7 @@ GPIO.output(OUT3,GPIO.LOW)
 GPIO.output(OUT4,GPIO.LOW)
 
 num_steps = 200
-step_delay = 0.03
+step_delay = 0.03        
 
 
 try:
