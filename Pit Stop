@@ -1,0 +1,71 @@
+#
+#
+import rclpy
+from rclpy.node import Node
+from geometry_msgs.msg import Twist, Vector3
+import requests
+import json
+
+URL = ''
+# Headers with your Access Token
+# Format: {'Authorization': 'Bearer Access_Token'}
+# Note that you need to leave "Bearer" before the access token
+headers  = {'Authorization': '.'}
+
+class SimplePublisher(Node):
+    def __init__(self):
+        super().__init__('simple_publisher')
+        self.publisher_ = self.create_publisher(Twist, '/cmd_vel', 10)
+
+        self.timer_period = 3.5
+        self.timer = self.create_timer(self.timer_period, self.timer_callback)
+        self.timer.override_system = True
+
+        self.i = 0
+
+        # Airtable setup
+        # self.airtable_url = 'https://airtable.com/appsojvRmm6osWlTy/tblRe0xbtlF19wkTE/viwaAzv7EQNOKosHH?blocks=hide'
+        # self.headers = {'Authorization': 'Bearer patTEDXjeRx4YoqQq.8b3d88e36210e3bef42f3e1de117d034eb6a2e4260522a72da178baea7151e0c'}
+
+    def timer_callback(self):
+        try:
+            # Fetch control commands from Airtable
+            r = requests.get(url=URL, headers=headers) #was respojnse
+          #  r = requests.get(url=URL, headers=Headers)
+            # Check if the request was successful
+            r.raise_for_status()
+            # Convert the JSON response to a Python dictionary
+            data = r.json()
+            print (data)
+             #print(data.keys())
+            print("hello 4")
+            linear_velocity = float(data['records'][0]['fields']['linear_velocity'])
+            angular_velocity = float(data['records'][0]['fields']['angular_velocity'])
+            print(angular_velocity)
+            print(linear_velocity)
+            # Create Twist message with fetched control commands
+            twist_msg = Twist(
+                linear=Vector3(x=linear_velocity, y=0.0, z=0.0),
+                angular=Vector3(x=0.0, y=0.0, z=angular_velocity)
+            )
+
+            # Publish Twist message to control the robot
+            self.publisher_.publish(twist_msg)
+
+            self.get_logger().info('Publishing: "%s"' % twist_msg)
+        except Exception as e:
+            self.get_logger().error(f"Error fetching/parsing Airtable data: {e}")
+
+def main(args=None):
+    rclpy.init(args=args)
+    simple_publisher = SimplePublisher()
+
+    try:
+        rclpy.spin(simple_publisher)
+    except KeyboardInterrupt:
+        print('\nCaught Keyboard Interrupt')
+        simple_publisher.destroy_node()
+        rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()
