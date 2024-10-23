@@ -1,5 +1,5 @@
 #https://flax-haze-954.notion.site/Project-2-Linkages-473de1ad5a38492faa8785ff03c918db?pvs=4
-#Details on the project can be found in the link attached.
+#Details on the project can be found on the link attached.
 
 import RPi.GPIO as GPIO
 import time
