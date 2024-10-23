@@ -1,3 +1,5 @@
+#https://flax-haze-954.notion.site/Project-1-Double-Jump-3b13d704e8bb4b06807e5e6168552828?pvs=4
+#Details on the project can be found on the link attached.
 import RPi.GPIO as GPIO
 import time
 
