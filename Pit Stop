@@ -1,5 +1,5 @@
-#
-#
+#https://flax-haze-954.notion.site/Project-5-Pit-Stop-34c04160a0694ffc8f86bfcc2a6516b1?pvs=4
+#Details on the project can be found on the link attached.
 import rclpy
 from rclpy.node import Node
 from geometry_msgs.msg import Twist, Vector3
