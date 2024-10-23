@@ -1,5 +1,5 @@
 #https://flax-haze-954.notion.site/Project-3-Star-Road-d9cc3e6496434ff4a57f93f07580a6c4?pvs=4
-#Details on the project can be found in the link attached.
+#Details on the project can be found on the link attached.
 import RPi.GPIO as GPIO
 import time
 
