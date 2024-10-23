@@ -1,0 +1,136 @@
+#
+#Details on the project can be found on the link attached.
+# Core opencv code provided by Einsteinium Studios
+# Revisions to work with Pi Camera v3 by Briana Bouchard
+import numpy as np
+import cv2
+from picamera2 import Picamera2
+from libcamera import controls
+import RPi.GPIO as GPIO
+import time
+#GPIO.cleanup()
+
+picam2 = Picamera2() # assigns camera variable
+picam2.set_controls({"AfMode": controls.AfModeEnum.Continuous}) # sets auto focus mode
+picam2.start() # activates camera
+time.sleep(1) # wait to give camera time to start up
+#GPIO.cleanup()
+ena1 = 26
+in1 = 19
+in2 = 13
+ena2 = 16
+in3 = 20
+in4 = 21
+# Board and pin setup
+GPIO.setmode(GPIO.BCM)
+GPIO.setup(ena1, GPIO.OUT)
+GPIO.setup(in1, GPIO.OUT)
+GPIO.setup(in2, GPIO.OUT)
+GPIO.setup(ena2, GPIO.OUT)
+GPIO.setup(in3, GPIO.OUT)
+GPIO.setup(in4, GPIO.OUT)
+# Set all pins low to start to prevent rotation on run
+GPIO.output(in1, GPIO.LOW)
+GPIO.output(in2, GPIO.LOW)
+GPIO.output(in3, GPIO.LOW)
+GPIO.output(in4, GPIO.LOW)
+GPIO.output(ena2, GPIO.LOW)
+GPIO.output(ena1, GPIO.LOW)
+#GPIO.cleanup()
+
+# PWM at 50 Hz
+#GPIO.cleanup()
+
+left_motor = GPIO.PWM(ena1, 50)
+right_motor = GPIO.PWM(ena2, 50)
+#GPIO.cleanup()
+
+err_sum = 0
+err_prev = 0
+def PIDControl(cx):
+    global err_sum
+    global err_prev
+    #mess with these 3
+    kp = 0.0427 #change by +-0.5, fine tune with +-0.1 
+    ki = 0.00377 #change by +-0.01, fine tune with +-0.005
+    kd = 0.2168 #change by +-0.5, fine tune with +-0.1 
+    err = 300 - cx #number is center
+    err_sum += err
+    err_d = err - err_prev
+    # Calculate the control signal
+    p = kp * err
+    i = ki * err_sum
+    d = kd * err_d
+    pid = p + i + d
+    # Update the error for the next iteration
+    err_prev = err
+    #max pid error at 15
+    if pid > 15:
+        pid = 15
+    if pid < -15:
+        pid = -15
+    return pid
+def Stop():
+    left_motor.stop()
+    right_motor.stop()
+def forward(pid):
+    GPIO.output(in2, GPIO.LOW)
+    GPIO.output(in1, GPIO.HIGH)
+    GPIO.output(in3, GPIO.HIGH)
+    GPIO.output(in4, GPIO.LOW)
+    first = 15-pid
+    second = 15+pid
+    right_motor.ChangeDutyCycle(first)
+    right_motor.start(first)
+    left_motor.ChangeDutyCycle(second)
+    left_motor.start(second)
+    #GPIO.cleanup()
+
+try:
+    while True:
+        # Display camera input
+        image = picam2.capture_array("main")
+        cv2.imshow('img',image)
+        # Crop the image
+        #crop_img = image[centery - crop_height//2: centery + cropheight//2, centerx - crop_width//2:centerx + crop_width//2]
+        crop_img = image[60:240, 0:800] #change size of screen with this
+        # Convert to grayscale
+        gray = cv2.cvtColor(crop_img, cv2.COLOR_BGR2GRAY)
+        # Gaussian blur
+        blur = cv2.GaussianBlur(gray,(5,5),0)
+        # Color thresholding
+        input_threshold,comp_threshold = cv2.threshold(blur,60,255,cv2.THRESH_BINARY_INV)
+        # Find the contours of the frame
+        contours,hierarchy = cv2.findContours(comp_threshold.copy(), cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
+        # Find the biggest contour (if detected)
+        if len(contours) > 0:
+            c = max(contours, key=cv2.contourArea)
+            M = cv2.moments(c) # determine moment - weighted average of intensities
+            if int(M['m00']) != 0:
+                cx = int(M['m10']/M['m00']) # find x component of centroid location
+                cy = int(M['m01']/M['m00']) # find y component of centroid location
+            else:
+                print("Centroid calculation error, looping to acquire new values")
+                continue
+            
+            cv2.line(crop_img,(cx,0),(cx,720),(255,0,0),1) # display vertical line at x value of centroid
+            cv2.line(crop_img,(0,cy),(1280,cy),(255,0,0),1) # display horizontal line at y value of centroid
+            cv2.drawContours(crop_img, contours, -1, (0,255,0), 2) # display green lines for all contours
+            pid = PIDControl(cx)
+            forward(pid)
+            # print (cx)
+            if cx >= 120:
+                print("Turn Left!")
+            if cx < 120 and cx > 50:
+                print("On Track!")
+            if cx <= 50:
+                print("Turn Right")
+            else:
+                print("I don't see the line")
+        # Display the resulting frame
+        cv2.imshow('frame',crop_img)
+        # Show image for 1 ms then continue to next image
+        cv2.waitKey(1)
+except KeyboardInterrupt:
+    GPIO.cleanup()
+    print('Cleaned Up')
